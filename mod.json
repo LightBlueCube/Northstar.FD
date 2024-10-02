@@ -1,0 +1,111 @@
+{
+	"Name": "Northstar.FD",
+	"Description": "currently version:https://github.com/Zanieon/NorthstarMods/commit/9b6f3df99dc312acd81c849e4c5dbbbe8b6c7fc5",
+	"LoadPriority": 2,
+	"ConVars": [
+		{
+            "Name": "ns_fd_elite_minimap_icontype",
+            "DefaultValue": "0",
+			"Flags": "ARCHIVE_PLAYERPROFILE"
+        },
+        {
+            "Name": "ns_fd_elite_overhead_icontype",
+            "DefaultValue": "1",
+			"Flags": "ARCHIVE_PLAYERPROFILE"
+        },
+		{
+			"Name": "embark_style",
+			"DefaultValue": "0",
+			"Flags": 640
+		},
+
+
+		{
+			"Name": "ns_private_match_auto_rotation_start",
+			"DefaultValue": "0"
+		},
+		{
+			"Name": "ns_private_match_map_rotation",
+			"DefaultValue": "mp_angel_city,mp_black_water_canal,mp_grave,mp_colony02,mp_complex3,mp_drydock,mp_eden,mp_thaw,mp_forwardbase_kodai,mp_glitch,mp_homestead,mp_rise,mp_wargames"
+		},
+		{
+			"Name": "ns_allow_team_change",
+			"DefaultValue": "1",
+			"Flags": "REPLICATED"
+		},
+		{
+			"Name": "ns_autobalance_teams_on_player_join",
+			"DefaultValue": "0"
+		},
+		{
+			"Name": "ns_use_phase_fix",
+			"DefaultValue": "1"
+		},
+		{
+			"Name": "ns_server_idle_time_refresh_max_time",
+			"DefaultValue": "240"
+		},
+		{
+			"Name": "ns_ronin_fair_phase",
+			"DefaultValue": "0"
+		},
+		{
+			"Name": "ns_cinematic_titanfall",
+			"DefaultValue": "0"
+		},
+		{
+			"Name": "ns_fd_min_numplayers_to_start",
+			"DefaultValue": "1"
+		},
+		{
+			"Name": "ns_fd_infantry_at_weapons",
+			"DefaultValue": ""
+		},
+		{
+			"Name": "ns_fd_grunt_primary_weapon",
+			"DefaultValue": ""
+		},
+		{
+			"Name": "ns_fd_grunt_grenade",
+			"DefaultValue": ""
+		},
+		{
+			"Name": "ns_fd_spectre_primary_weapon",
+			"DefaultValue": ""
+		},
+		{
+			"Name": "ns_fd_disable_respawn_dropship",
+			"DefaultValue": "0"
+		},
+		{
+			"Name": "ns_reaper_warpfall_kill",
+			"DefaultValue": "1"
+		}
+	],
+	"Scripts": [
+		{
+			"Path": "ui/ns_gamemode_fd.nut",
+            "RunOn": "UI",
+            "UICallback": {
+                "Before": "EliteIconSettings_Init"
+            }
+		},
+		{
+			"Path": "ai/_ai_elite_titans.nut",
+			"RunOn": "SERVER && MP"
+		},
+		{
+			"Path": "sh_progression.nut",
+			"RunOn": "UI || SERVER || CLIENT",
+			"ServerCallback": {
+				"Before": "Progression_Init"
+			},
+			"ClientCallback": {
+				"Before": "Progression_Init"
+			},
+			"UICallback": {
+				"Before": "Progression_Init"
+			}
+		}
+	]
+}
