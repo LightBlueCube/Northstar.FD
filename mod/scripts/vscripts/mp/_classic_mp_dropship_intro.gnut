@@ -75,6 +75,8 @@ void function OnPrematchStart()
 	if ( validDropshipSpawns.len() < 2 )
 		validDropshipSpawns = dropshipSpawns
 	
+	validDropshipSpawns.reverse() // Flip cuz idk why Dropships are in mirrored order in comparison to vanilla
+
 	// Spawn the Dropships
 	foreach ( entity dropshipSpawn in validDropshipSpawns )
 	{
@@ -146,11 +148,10 @@ void function WaitForDropshipDeploy( entity dropship )
 void function PutPlayerInDropship( entity player )
 {
 	//Find the player's dropship and seat
-	table< entity, array<entity> > teamDropships
+	table< entity, array< entity > > teamDropships
+	teamDropships = file.imcDropships
 	if ( player.GetTeam() == TEAM_MILITIA )
 		teamDropships = file.militiaDropships
-	else
-		teamDropships = file.imcDropships
 	
 	entity playerDropship
 	array< int > availableShipSlots
@@ -210,7 +211,6 @@ void function SpawnPlayerIntoDropship( entity player, int playerDropshipIndex, e
 		idleSequence.attachment = "ORIGIN"
 		idleSequence.teleport = true
 		idleSequence.viewConeFunction = ViewConeRampFree
-		idleSequence.hideProxy = true
 		thread FirstPersonSequence( idleSequence, player, playerDropship )
 		playerDropship.WaitSignal( "deploy" )
 	}
@@ -227,8 +227,8 @@ void function SpawnPlayerIntoDropship( entity player, int playerDropshipIndex, e
 		PlayBattleChatterLine( player, "bc_pIntroChat" )
 	#endif
 	
-	thread FirstPersonSequence( jumpSequence, player, playerDropship )
-	WaittillAnimDone( player )
+	waitthread FirstPersonSequence( jumpSequence, player, playerDropship )
+	wait 0.3 // Blendout time from the function
 	
 	thread PlayerJumpsFromDropship( player )
 }
@@ -245,6 +245,7 @@ void function PlayerJumpsFromDropship( entity player )
 			// show weapon viewmodel and hud and let them move again
 			player.MovementEnable()
 			player.EnableWeaponViewModel()
+			player.UnfreezeControlsOnServer()
 			DeployAndEnableWeapons( player )
 			RemoveCinematicFlag( player, CE_FLAG_CLASSIC_MP_SPAWNING )
 		}

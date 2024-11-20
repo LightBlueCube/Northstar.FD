@@ -1,4 +1,4 @@
-`currently version:https://github.com/Zanieon/NorthstarMods/commit/9b6f3df99dc312acd81c849e4c5dbbbe8b6c7fc5`
+`currently version:https://github.com/Zanieon/NorthstarMods/pull/12/commits/fe3fde3b362441a5ae07c7b43191b90b14880763`
 
 # Experimental Frontier Defense
 

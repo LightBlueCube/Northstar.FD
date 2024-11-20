@@ -18,41 +18,6 @@
 			"DefaultValue": "0",
 			"Flags": 640
 		},
-
-
-		{
-			"Name": "ns_private_match_auto_rotation_start",
-			"DefaultValue": "0"
-		},
-		{
-			"Name": "ns_private_match_map_rotation",
-			"DefaultValue": "mp_angel_city,mp_black_water_canal,mp_grave,mp_colony02,mp_complex3,mp_drydock,mp_eden,mp_thaw,mp_forwardbase_kodai,mp_glitch,mp_homestead,mp_rise,mp_wargames"
-		},
-		{
-			"Name": "ns_allow_team_change",
-			"DefaultValue": "1",
-			"Flags": "REPLICATED"
-		},
-		{
-			"Name": "ns_autobalance_teams_on_player_join",
-			"DefaultValue": "0"
-		},
-		{
-			"Name": "ns_use_phase_fix",
-			"DefaultValue": "1"
-		},
-		{
-			"Name": "ns_server_idle_time_refresh_max_time",
-			"DefaultValue": "240"
-		},
-		{
-			"Name": "ns_ronin_fair_phase",
-			"DefaultValue": "0"
-		},
-		{
-			"Name": "ns_cinematic_titanfall",
-			"DefaultValue": "0"
-		},
 		{
 			"Name": "ns_fd_min_numplayers_to_start",
 			"DefaultValue": "1"
@@ -75,6 +40,49 @@
 		},
 		{
 			"Name": "ns_fd_disable_respawn_dropship",
+			"DefaultValue": "0"
+		},
+
+
+		{
+			"Name": "ns_private_match_auto_rotation_start",
+			"DefaultValue": "0"
+		},
+		{
+			"Name": "ns_private_match_map_rotation",
+			"DefaultValue": "mp_angel_city,mp_black_water_canal,mp_grave,mp_colony02,mp_complex3,mp_drydock,mp_eden,mp_thaw,mp_forwardbase_kodai,mp_glitch,mp_homestead,mp_rise,mp_wargames"
+		},
+		{
+			"Name": "ns_maxplayers_override",
+			"DefaultValue": "0"
+		},
+		{
+			"Name": "ns_allow_team_change",
+			"DefaultValue": "1",
+			"Flags": "REPLICATED"
+		},
+		{
+			"Name": "ns_disable_headshot_multiplier",
+			"DefaultValue": "0"
+		},
+		{
+			"Name": "ns_autobalance_teams_on_player_join",
+			"DefaultValue": "0"
+		},
+		{
+			"Name": "ns_use_phase_fix",
+			"DefaultValue": "1"
+		},
+		{
+			"Name": "ns_server_idle_time_refresh_max_time",
+			"DefaultValue": "240"
+		},
+		{
+			"Name": "ns_ronin_fair_phase",
+			"DefaultValue": "0"
+		},
+		{
+			"Name": "ns_cinematic_titanfall",
 			"DefaultValue": "0"
 		},
 		{

@@ -5,10 +5,6 @@ global function RateSpawnpoints_FD
 global function IsHarvesterAlive
 global function GetTargetNameForID
 
-global function DisableTitanSelection
-global function DisableTitanSelectionForPlayer
-global function EnableTitanSelection
-global function EnableTitanSelectionForPlayer
 global function FD_DropshipSetAnimationOverride
 global function HT_BatteryPort
 global function AddCallback_RegisterCustomFDContent
@@ -167,7 +163,7 @@ void function GamemodeFD_Init()
 
 	SetRoundBased( true )
 	SetSwitchSidesBased( false ) //Just to make sure in case of any future problem regarding teamside switch
-	SetTimerBased( false ) //Disable loss by timer because the wait feature will truly idle servers until people joins
+	FlagSet( "DisableTimeLimit" ) //Disable loss by timer because the wait feature will truly idle servers until people joins
 	SetShouldUseRoundWinningKillReplay( false )
 	SetServerVar( "replayDisabled", true ) //Only disabling Killcams because it's PvE, also seems to reduce server network load a little bit
 	Riff_ForceBoostAvailability( eBoostAvailability.Disabled )
@@ -265,35 +261,34 @@ void function GamemodeFD_Init()
 	{
 		string Cvar_gruntweapons = GetConVarString( "ns_fd_grunt_primary_weapon" )
 		array<string> FD_GruntWeapons = split( Cvar_gruntweapons, "," )
-		AISpawn_SetupNPCWeapons( "npc_soldier", FD_GruntWeapons )
+		AILoadout_SetupNPCWeapons( "npc_soldier", FD_GruntWeapons )
 	}
 	else
-		AISpawn_SetupNPCWeapons( "npc_soldier", ["mp_weapon_rspn101","mp_weapon_car","mp_weapon_alternator_smg","mp_weapon_hemlok_smg","mp_weapon_r97"] )
+		AILoadout_SetupNPCWeapons( "npc_soldier", ["mp_weapon_rspn101","mp_weapon_car","mp_weapon_alternator_smg","mp_weapon_hemlok_smg","mp_weapon_r97"] )
 	
 	if ( GetConVarString( "ns_fd_spectre_primary_weapon" ) != "" )
 	{
 		string Cvar_spectreweapons = GetConVarString( "ns_fd_spectre_primary_weapon" )
 		array<string> FD_SpectreWeapons = split( Cvar_spectreweapons, "," )
-		AISpawn_SetupNPCWeapons( "npc_spectre", FD_SpectreWeapons )
+		AILoadout_SetupNPCWeapons( "npc_spectre", FD_SpectreWeapons )
 	}
 	else
-		AISpawn_SetupNPCWeapons( "npc_spectre", ["mp_weapon_hemlok","mp_weapon_vinson","mp_weapon_g2","mp_weapon_mastiff","mp_weapon_shotgun","mp_weapon_doubletake","mp_weapon_dmr"] )
+		AILoadout_SetupNPCWeapons( "npc_spectre", ["mp_weapon_hemlok","mp_weapon_vinson","mp_weapon_g2","mp_weapon_mastiff","mp_weapon_shotgun","mp_weapon_doubletake","mp_weapon_dmr"] )
 	
 	if ( GetConVarString( "ns_fd_infantry_at_weapons" ) != "" )
 	{
 		string Cvar_ATWeapons = GetConVarString( "ns_fd_infantry_at_weapons" )
 		array<string> FD_ATWeapons = split( Cvar_ATWeapons, "," )
-		AISpawn_SetupNPCAntiTitanWeapons( "npc_soldier", FD_ATWeapons )
-		AISpawn_SetupNPCAntiTitanWeapons( "npc_spectre", FD_ATWeapons )
+		AILoadout_SetupNPCAntiTitanWeapons( "npc_soldier", FD_ATWeapons )
+		AILoadout_SetupNPCAntiTitanWeapons( "npc_spectre", FD_ATWeapons )
 	}
 	else
 	{
-		AISpawn_SetupNPCAntiTitanWeapons( "npc_soldier", ["mp_weapon_defender"] )
-		AISpawn_SetupNPCAntiTitanWeapons( "npc_spectre", ["mp_weapon_defender"] )
+		AILoadout_SetupNPCAntiTitanWeapons( "npc_soldier", [ "mp_weapon_defender" ] )
+		AILoadout_SetupNPCAntiTitanWeapons( "npc_spectre", [ "mp_weapon_defender" ] )
 	}
 	
 	level.endOfRoundPlayerState = ENDROUND_FREE
-	EliteTitans_Init()
 	#endif
 	
 	for ( int i = 0; i < 20; i++ ) //Setup NPC array for Harvester Damage tracking
@@ -548,7 +543,7 @@ void function LoadEntities()
 	
 	if ( file.harvesterLocationOverride != < 0, 0, 0 > )
 		file.harvesterLocation = file.harvesterLocationOverride
-		
+	
 	if ( file.harvesterAngleOverride != < 0, 0, 0 > )
 		file.harvesterAngles = file.harvesterAngleOverride
 	
@@ -556,8 +551,23 @@ void function LoadEntities()
 		file.aiDefenseLocation = file.harvesterLocation
 	
 	ValidateAndFinalizePendingStationaryPositions()
-	initNetVars()
 	SetTeam( GetTeamEnt( TEAM_IMC ), TEAM_IMC )
+
+	SetGlobalNetInt( "FD_totalWaves", WaveSpawnEvents.len() )
+	if ( !file.isLiveFireMap )
+		SetGlobalNetInt( "burn_turretLimit", 2 )
+	else
+	{
+		SetGlobalNetBool( "titanEjectEnabled", false ) // Disable ejection for Helper Titan
+		SetGlobalNetInt( "burn_turretLimit", 3 ) // Live Fire maps are brutal with spawns so, good to have more turrets
+	}
+	
+	SetGlobalNetInt( "FD_currentWave", 0 )
+	EarnMeterMP_SetPassiveMeterGainEnabled( false ) // Initially don't give passive earnmeter otherwise waiting players can get it
+
+	int maxRestarts = GetCurrentPlaylistVarInt( "roundscorelimit", 3 ) - 1 // Minus one because current round already counts
+	FD_SetMaxAllowedRestarts( maxRestarts )
+	FD_SetNumAllowedRestarts( maxRestarts )
 }
 
 entity function FD_OverrideTitanSpawns( entity player, entity spawnPoint )
@@ -566,24 +576,6 @@ entity function FD_OverrideTitanSpawns( entity player, entity spawnPoint )
 		return file.titanSpawnPoints.getrandom()
 	
 	return spawnPoint
-}
-
-void function initNetVars()
-{
-	SetGlobalNetInt( "FD_totalWaves", WaveSpawnEvents.len() )
-	if ( !file.isLiveFireMap )
-		SetGlobalNetInt( "burn_turretLimit", 2 )
-	else
-	{
-		SetGlobalNetBool( "titanEjectEnabled", false ) //Disable ejection for Helper Titan
-		SetGlobalNetInt( "burn_turretLimit", 3 ) //Live Fire maps are brutal with spawns so, good to have more turrets
-	}
-	
-	SetGlobalNetInt( "FD_currentWave", 0 )
-	
-	int maxRestarts = GetCurrentPlaylistVarInt( "roundscorelimit", 3 ) - 1 //Minus one because current round already counts
-	FD_SetMaxAllowedRestarts( maxRestarts )
-	FD_SetNumAllowedRestarts( maxRestarts )
 }
 
 
@@ -983,6 +975,7 @@ bool function runWave( int waveIndex, bool shouldDoBuyTime )
 		else
 		{
 			SetRoundBased( false )
+			AddTeamRoundScoreNoStateChange( TEAM_IMC )
 			SetWinner( TEAM_IMC, "#FD_TOTAL_DEFEAT_HINT", "#FD_TOTAL_DEFEAT_HINT" )
 			print( "Finishing match, no more retries left" )
 			PlayFactionDialogueToTeam( "fd_matchDefeat", TEAM_MILITIA, true )
@@ -1028,10 +1021,10 @@ bool function runWave( int waveIndex, bool shouldDoBuyTime )
 			highestScore = 0
 			highestScore_player = GetPlayerArrayOfTeam( TEAM_MILITIA )[0]
 		}
-		
 		else
 		{
 			SetRoundBased( false )
+			AddTeamRoundScoreNoStateChange( TEAM_MILITIA )
 			SetWinner( TEAM_MILITIA, "#FD_TOTAL_VICTORY_HINT", "#FD_TOTAL_VICTORY_HINT" )
 			return true
 		}
@@ -1048,6 +1041,7 @@ bool function runWave( int waveIndex, bool shouldDoBuyTime )
 		}
 		
 		SetRoundBased( false )
+		AddTeamRoundScoreNoStateChange( TEAM_MILITIA )
 		SetWinner( TEAM_MILITIA, "#FD_TOTAL_VICTORY_HINT", "#FD_TOTAL_VICTORY_HINT" )
 		PlayFactionDialogueToTeam( "fd_matchVictory", TEAM_MILITIA, true )
 		
@@ -1348,6 +1342,7 @@ void function GamemodeFD_InitPlayer( entity player )
 	player.s.extracashnag <- Time()
 	player.s.didthepvpglitch <- false
 	player.s.isbeingmonitored <- false
+	player.s.scoredamage <- 0.0
 	thread SetTurretSettings_threaded( player )
 	
 	// only start the highlight when we start playing, not during dropship
@@ -1505,8 +1500,7 @@ void function FD_OnPlayerGetsNewPilotLoadout( entity player, PilotLoadoutDef loa
 
 void function FD_GivePlayerInfiniteAntiTitanAmmo( entity player )
 {
-	array<entity> weapons = player.GetMainWeapons()
-	foreach ( entity weaponEnt in weapons )
+	foreach ( entity weaponEnt in player.GetMainWeapons() )
 	{
 		if ( weaponEnt.GetWeaponInfoFileKeyField( "menu_category" ) != "at" )
 			continue
@@ -1518,8 +1512,7 @@ void function FD_GivePlayerInfiniteAntiTitanAmmo( entity player )
 
 void function FD_GiveSmartPistol( entity player )
 {
-	array<entity> weapons = player.GetMainWeapons()
-	foreach ( entity weaponEnt in weapons )
+	foreach ( entity weaponEnt in player.GetMainWeapons() )
 	{
 		if ( weaponEnt.GetWeaponInfoFileKeyField( "menu_category" ) != "pistol" )
 			continue
@@ -1874,13 +1867,15 @@ void function RateSpawnpoints_FD( int checkClass, array<entity> spawnpoints, int
 	foreach ( entity spawnpoint in spawnpoints )
 	{
 		float rating = 0.0
+		float enemiesRating = spawnpoint.NearbyEnemyScore( team, "ai" ) + spawnpoint.NearbyEnemyScore( team, "titan" ) + spawnpoint.NearbyEnemyScore( team, "pilot" )
 		float distance = Distance2D( spawnpoint.GetOrigin(), file.harvesterLocation )
 		if ( team == TEAM_MILITIA && distance < Distance2D( < 0, 0, 0 >, file.harvesterLocation ) )
-			rating = 10.0 * ( 1 - ( distance / 5000.0 ) )
+			rating = 4.0 * ( 1 - ( distance / 3000.0 ) )
 		else
-			rating = Distance2D( spawnpoint.GetOrigin(), file.harvesterLocation )
+			rating = Distance2D( spawnpoint.GetOrigin(), file.harvesterLocation ) / MAP_EXTENTS
 		
-		spawnpoint.CalculateRating( checkClass, team, rating, rating )
+		rating += enemiesRating
+		spawnpoint.CalculateRating( checkClass, team, rating, rating * 0.25 )
 	}
 }
 
@@ -1960,7 +1955,7 @@ void function FD_PlayerRespawnThreaded( entity player )
 		{
 			if ( file.dropshipSpawnPosition == < 0, 0, 0 > && file.DropPodSpawns.len() || GetConVarBool( "ns_fd_disable_respawn_dropship" ) && file.DropPodSpawns.len() )
 				thread FD_SpawnPlayerDroppod( player )
-			else if ( !file.DropPodSpawns.len() || GetGameState() != eGameState.Playing )
+			else if ( !file.DropPodSpawns.len() || !GamePlaying() )
 			{
 				player.SetOrigin( file.groundSpawnPosition )
 				player.SetAngles( file.groundSpawnAngles )
@@ -2021,7 +2016,12 @@ void function FD_DamageByPlayerCallback( entity victim, var damageInfo )
 	if ( player in file.playerAwardStats )
 		file.playerAwardStats[player]["damageDealt"] += damageDone
 	
-	file.players[player].assaultScoreThisRound += damageDone.tointeger() / 100
+	player.s.scoredamage += damageDone
+	while( player.s.scoredamage >= 100 )
+	{
+		player.s.scoredamage -= 100
+		file.players[player].assaultScoreThisRound++
+	}
 }
 
 void function FD_DamageToMoney( entity victim, var damageInfo )
@@ -2047,12 +2047,19 @@ void function FD_DamageToMoney( entity victim, var damageInfo )
 					AddMoneyToPlayer( attacker, 1 )
 				}
 			}
+
+			if ( soul.GetShieldHealth() <= 0 )
+			{
+				attacker.s.scoredamage += damage
+				while( attacker.s.scoredamage >= 100 )
+				{
+					attacker.s.scoredamage -= 100
+					file.players[attacker].assaultScoreThisRound++
+				}
+			}
 			
 			if ( attacker in file.playerAwardStats )
 				file.playerAwardStats[attacker]["damageDealt"] += damage
-			
-			if ( attacker in file.players )
-				file.players[attacker].assaultScoreThisRound += damage.tointeger() / 100
 		}
 	}
 }
@@ -2264,11 +2271,7 @@ void function OnHarvesterDamaged( entity harvester, var damageInfo )
 	if ( IsValid( weapon ) && HeavyArmorCriticalHitRequired( damageInfo ) && IsValid( attacker ) && !attacker.IsTitan() ) //Small change since Grunts will do 0 damage with normal guns because Harvester uses heavy armor
 		damageAmount = float( weapon.GetWeaponSettingInt( eWeaponVar.damage_near_value ) )
 	
-	int PlayersInMatch = GetPlayerArrayOfTeam( TEAM_MILITIA ).len() + 1
-	
-	if ( PlayersInMatch > 4 ) //Additional players should not be considered
-		PlayersInMatch = 4
-	
+	int PlayersInMatch = minint( 4, GetPlayerArrayOfTeam( TEAM_MILITIA ).len() + 1 ) //Additional players should not be considered
 	float MultiplierPerPlayer = 0.25
 
 	if ( !damageSourceID || !damageAmount || !IsValid( attacker ) )
@@ -2512,6 +2515,8 @@ void function HealthScaleByDifficulty( entity ent )
 
 void function OnFriendlyNPCTitanSpawnThreaded( entity npc )
 {
+	npc.EndSignal( "OnDeath" )
+	npc.EndSignal( "OnDestroy" )
 	FD_UpdateTitanBehavior()
 	WaitFrame()
 	WaitTillHotDropComplete( npc )
@@ -2815,18 +2820,6 @@ void function FD_OnNPCDeath( entity victim, entity attacker, var damageInfo )
 			default:
 				money = 0
 		}
-		
-		if ( victim.IsTitan() )
-		{
-			foreach ( player in GetPlayerArray() )
-				Remote_CallFunction_NonReplay( player, "ServerCallback_OnTitanKilled", attacker.GetEncodedEHandle(), victim.GetEncodedEHandle(), scriptDamageType, damageSourceId )
-		}
-		else
-		{
-			foreach ( player in GetPlayerArray() )
-				Remote_CallFunction_NonReplay( player, "ServerCallback_OnEntityKilled", attacker.GetEncodedEHandle(), victim.GetEncodedEHandle(), scriptDamageType, damageSourceId )
-		}
-		
 		if ( damageSourceId == eDamageSourceId.rodeo_forced_titan_eject || damageSourceId == eDamageSourceId.core_overload )
 			UpdatePlayerStat( attacker, "fd_stats", "rodeoNukes" )
 	}
@@ -2842,9 +2835,6 @@ void function FD_OnNPCDeath( entity victim, entity attacker, var damageInfo )
 	{
 		if ( !inflictor.IsNPC() && attacker.IsPlayer() ) //Turret and Auto-Titan kills should not give xp awards
 		{
-			if ( DamageInfo_GetCustomDamageType( damageInfo ) & DF_HEADSHOT )
-				AddPlayerScore( attacker, "NPCHeadshot" )
-			
 			entity weapon = attacker.GetActiveWeapon()
 			bool canWeaponEarnXp = IsValid( weapon ) && ShouldTrackXPForWeapon( weapon.GetWeaponClassName() ) ? true : false
 			
@@ -2899,31 +2889,6 @@ void function FD_OnNPCDeath( entity victim, entity attacker, var damageInfo )
 					AddPlayerScore( attacker, "MegaKill" )
 				else if ( attacker.s.currentTimedKillstreak == 6 )
 					ShowLargePilotKillStreak( attacker )
-			}
-
-			switch ( GetTitanCharacterName( victim ) && GetGlobalNetInt( "FD_waveState" ) == WAVE_STATE_IN_PROGRESS )
-			{
-				case "ion":
-					PlayFactionDialogueToPlayer( "kc_pilotkillIon", attacker )
-					break
-				case "tone":
-					PlayFactionDialogueToPlayer( "kc_pilotkillTone", attacker )
-					break
-				case "legion":
-					PlayFactionDialogueToPlayer( "kc_pilotkillLegion", attacker )
-					break
-				case "scorch":
-					PlayFactionDialogueToPlayer( "kc_pilotkillScorch", attacker )
-					break
-				case "ronin":
-					PlayFactionDialogueToPlayer( "kc_pilotkillRonin", attacker )
-					break
-				case "northstar":
-					PlayFactionDialogueToPlayer( "kc_pilotkillNorthstar", attacker )
-					break
-				default:
-					PlayFactionDialogueToPlayer( "kc_pilotkilltitan", attacker )
-					break
 			}
 		}
 	}
@@ -3740,9 +3705,7 @@ void function FD_Epilogue_threaded()
 	int gameMode = PersistenceGetEnumIndexForItemName( "gamemodes", GAMETYPE )
 	int map = PersistenceGetEnumIndexForItemName( "maps", GetMapName() )
 	int myIndex
-	int numPlayers = GetPlayerArray().len()
-	if ( numPlayers > 4 ) //Cap cuz it crashes summary menu
-		numPlayers = 4
+	int numPlayers = minint( 4, GetPlayerArray().len() ) //Cap cuz it crashes summary menu
 
 	foreach ( entity player in GetPlayerArrayOfTeam( TEAM_MILITIA ) )
 	{
